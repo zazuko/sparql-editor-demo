@@ -12,6 +12,7 @@
     "@tpluscode/rdf-string": "0.2.22",
     "lit-html": "1.3.0",
     "rdf-ext": "^1.3.1",
+    "rdf-literal": "^1.2.0",
     "sparql-http-client": "2.2.3"
   },
   "devDependencies": {

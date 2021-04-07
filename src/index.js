@@ -3,24 +3,44 @@ import { asyncAppend } from 'lit-html/directives/async-append.js'
 import '@rdfjs-elements/sparql-editor/sparql-editor.js'
 import { turtle } from '@tpluscode/rdf-string'
 import { termToNTriples } from '@rdf-esm/to-ntriples'
+import { fromRdf } from 'rdf-literal'
 import query from './query.js'
 
 const editor = document.getElementById('editor')
 const results = document.getElementById('results')
 
-function renderRow (result) {
-  const row = Object.values(result).map((term) => html`<td>${termToNTriples(term)}</td>`)
+function renderRow (variables) {
+  return (result) => {
+    const row = variables.map((variable) => {
+      const term = result[variable.value]
+      if(!term) {
+        return html`<td></td>`
+      }
 
-  return html`<tr>${row}</tr>`
+      if (term.termType === 'Literal') {
+        return html`<td title="${termToNTriples(term)}">${fromRdf(term)}</td>`
+      }
+
+      if (term.termType === 'NamedNode') {
+        return html`<td><a target="_blank" href="${term.value}">${term.value}</a></td>`
+      }
+
+      return html`<td>${termToNTriples(term)}</td>`
+    })
+
+    return html`<tr>${row}</tr>`
+  }
 }
 
 // for SELECT queries, StreamClient returns a stream of row objects
-function renderTable (selectResults) {
-  render(html`<table>
+function renderTable (variables) {
+  return (selectResults) => {
+    render(html`<table>
         <tbody>
-            ${asyncAppend(selectResults, renderRow)}
+            ${asyncAppend(selectResults, renderRow(variables))}
         </tbody>
     </table>`, results)
+  }
 }
 
 // for DESCRIBE and CONSTRUCT queries, StreamClient returns an RDF/JS quad stream
@@ -47,7 +67,7 @@ async function getResults ({ detail: { query, value } }) {
       client.query.construct(value).then(renderGraph)
       break
     case 'SELECT':
-      client.query.select(value).then(renderTable)
+      client.query.select(value).then(renderTable(query.variables))
       break
     case 'ASK':
       // for ASK queries, StreamClient returns a boolean
