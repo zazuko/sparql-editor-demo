@@ -4,10 +4,14 @@ import '@rdfjs-elements/sparql-editor/sparql-editor.js'
 import { turtle } from '@tpluscode/rdf-string'
 import { termToNTriples } from '@rdf-esm/to-ntriples'
 import { fromRdf } from 'rdf-literal'
+import { Generator } from 'sparqljs'
 import query from './query.js'
+
+const sparqlGenerator = new Generator()
 
 const editor = document.getElementById('editor')
 const results = document.getElementById('results')
+const info = document.getElementById('info')
 
 function renderRow (variables) {
   return (result) => {
@@ -54,6 +58,7 @@ async function renderGraph (stream) {
 
 async function getResults ({ detail: { query, value } }) {
   render('Running query', results)
+  render('', info)
 
   const SparqlClient = (await import('sparql-http-client')).default
   const client = new SparqlClient({
@@ -67,7 +72,11 @@ async function getResults ({ detail: { query, value } }) {
       client.query.construct(value).then(renderGraph)
       break
     case 'SELECT':
-      client.query.select(value).then(renderTable(query.variables))
+      if (!query.limit) {
+        render(html`<p>No <b><code>LIMIT</code></b> clause in query. Limiting to 10 results to prevent large responses</p>`, info)
+        query.limit = 10
+      }
+      client.query.select(sparqlGenerator.stringify(query)).then(renderTable(query.variables))
       break
     case 'ASK':
       // for ASK queries, StreamClient returns a boolean
